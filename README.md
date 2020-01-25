@@ -22,7 +22,3 @@
                             splitting,
                             scaling,
                             log(x) | x**(1/3) to normalize skewness,
-
-5. Model                --> Best model selection,
-                            hyperparameter tuning,
-                            Flask deployment
