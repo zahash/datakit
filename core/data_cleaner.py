@@ -1,4 +1,7 @@
+#Version: 1
+
 import pandas as pd
+import numpy as np
 import re
 
 
@@ -13,7 +16,7 @@ def preprocess(df, column_dtype_conversion_dictionary, std_coeff, fill_na_method
         fill_na_method: 'mean' or 'median'. nan values of each column will
             be replaced by that column's mean or median
     '''
-    df = sanitize_column_names(df)
+    # df = sanitize_column_names(df)
     df = change_dtypes(df, column_dtype_conversion_dictionary)
     df = df.drop_duplicates()
     df = remove_outliers(df, std_coeff)
@@ -25,20 +28,64 @@ def preprocess(df, column_dtype_conversion_dictionary, std_coeff, fill_na_method
 def sanitize_column_names(df):
     '''
     changes the column names to lowercase, strips any leading and trailing white space,
-    replaces space between words to underscores
+    replaces space between words to underscores and only keeps alphanumeric (and underscore) 
+    characters
     '''
+    new_cols = []
+    for col in df.columns:
+        # only keep alphanumeric and space
+        col = re.sub(r"[^A-Za-z0-9 ]", "", col)
+        # remove multiple consecutive spaces
+        col = re.sub(r" +", " ", col)
+        # strip leading and trailing white spaces, lowercase
+        # and replace space with underscore
+        col = col.strip().lower().replace(" ", "_")
+        new_cols.append(col)
 
-    df.columns = [re.sub(" +", " ", col).strip().lower().replace(" ", "_")
-                  for col in df.columns]
+    df.columns = new_cols
     return df
+
+
+def _filter_characters(dtype, element):
+    '''
+    if input element is not string then just returns the same element
+    else,
+    allows only digits and '.' and rejects other characters from
+    given string
+
+    Args:
+        dtype: the desired dtype to convert the element into
+
+    Example:
+        input: "$ 5,000.00" (element is string therefore process it)
+        output: 5000.00
+
+        input: np.nan
+        output: np.nan (returns the same element because element is not string)
+
+        input: -6
+        output: -6 (returns the same element because element is not string)
+
+    '''
+    if type(element) != str:
+        return element
+    else:
+        filtered_characters = []
+        for char in element:
+            if char.isdigit() or char == '.':
+                filtered_characters.append(char)
+
+        if len(filtered_characters) == 0:
+            return np.nan
+        return dtype(''.join(filtered_characters))
 
 
 def change_dtypes(df, conversion_dictionary):
     ''' first applies the functions then changes the dtypes '''
     for col_name, dtype in conversion_dictionary.items():
         if dtype in [int, float]:
-            df[col_name] = df[col_name].apply(lambda x: dtype(
-                ''.join([char for char in x if (char.isdigit() or char == '.')])))
+            df[col_name] = df[col_name].apply(
+                lambda x: _filter_characters(dtype, x))
 
         else:
             df[col_name] = df[col_name].astype({col_name: dtype})
